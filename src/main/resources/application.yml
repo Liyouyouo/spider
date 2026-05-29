@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: jubensha-manager
+
+  # ===== 开发环境：H2 内嵌数据库（无需安装 MySQL） =====
+  # 生产环境切换回 MySQL：取消下面注释，注释掉 H2 配置即可
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:jubensha;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password:
+
+  # H2 控制台（开发调试用，访问 http://localhost:8080/h2-console）
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # 启动时执行 SQL 初始化脚本
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:sql/schema-h2.sql
+      data-locations: classpath:sql/data-h2.sql
+
+  # 关闭 Redis（开发环境可不需要）
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: auto
+
+jwt:
+  secret: jubensha-manager-secret-key-2024-please-change-in-production
+  expiration: 86400000
+
+logging:
+  level:
+    com.jubensha.manager: debug

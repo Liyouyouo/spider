@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>剧本杀管理系统 - API 测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #16213e, #0f3460); padding: 20px 40px; text-align: center; border-bottom: 3px solid #e94560; }
+        .header h1 { font-size: 28px; color: #e94560; }
+        .header p { color: #a0a0b0; margin-top: 5px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .toolbar input, .toolbar select { padding: 10px 15px; border: 1px solid #333; border-radius: 6px; background: #16213e; color: #eee; font-size: 14px; }
+        .toolbar button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; }
+        .btn-login { background: #e94560; color: white; }
+        .btn-login:hover { background: #c73a52; }
+        .btn-api { background: #0f3460; color: #eee; border: 1px solid #e94560; }
+        .btn-api:hover { background: #1a4a8a; }
+        .result-box { background: #16213e; border-radius: 8px; padding: 20px; margin-bottom: 15px; }
+        .result-box h3 { color: #e94560; margin-bottom: 10px; font-size: 16px; }
+        .result-box .status { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+        .status.ok { background: #00b894; color: white; }
+        .status.err { background: #e94560; color: white; }
+        pre { background: #0d1117; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; color: #58a6ff; max-height: 300px; overflow-y: auto; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+        .card { background: #16213e; border-radius: 8px; padding: 18px; border-left: 4px solid #e94560; }
+        .card h4 { color: #e94560; margin-bottom: 8px; }
+        .card p { color: #aaa; font-size: 14px; margin: 3px 0; }
+        .card .price { color: #f0c040; font-weight: bold; font-size: 18px; }
+        .endpoint { background: #0d1117; color: #58a6ff; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 8px; display: inline-block; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
+        .tabs button { padding: 8px 20px; background: #16213e; border: 1px solid #333; color: #aaa; border-radius: 6px 6px 0 0; cursor: pointer; }
+        .tabs button.active { background: #0f3460; color: #e94560; border-bottom: 2px solid #e94560; }
+        .info-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px; }
+        .info-item { background: #0f3460; border-radius: 8px; padding: 15px 20px; flex: 1; min-width: 200px; text-align: center; }
+        .info-item .num { font-size: 32px; color: #e94560; font-weight: bold; }
+        .info-item .label { color: #aaa; font-size: 13px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>剧本杀门店管理系统 V1.0</h1>
+        <p>API 在线测试 · Spring Boot 3.2 + MyBatis-Plus · H2 内存数据库</p>
+    </div>
+
+    <div class="container">
+        <!-- 工具栏 -->
+        <div class="toolbar">
+            <input type="text" id="username" value="admin" placeholder="用户名" style="width:120px">
+            <input type="password" id="password" value="admin123" placeholder="密码" style="width:120px">
+            <button class="btn-login" onclick="login()">登录获取Token</button>
+            <span id="tokenStatus" style="color:#aaa;font-size:13px;align-self:center;">未登录</span>
+            <select id="roleSelect" onchange="switchRole()" style="margin-left:auto">
+                <option value="admin">管理员 (admin)</option>
+                <option value="dm">DM主持人 (dm_xiaoming)</option>
+                <option value="player">玩家 (player1)</option>
+            </select>
+        </div>
+
+        <!-- 数据概览 -->
+        <div class="info-row" id="dashboard" style="display:none">
+            <div class="info-item"><div class="num" id="d-revenue">0</div><div class="label">今日营收(元)</div></div>
+            <div class="info-item"><div class="num" id="d-orders">0</div><div class="label">今日订单</div></div>
+            <div class="info-item"><div class="num" id="d-sessions">0</div><div class="label">今日开本</div></div>
+            <div class="info-item"><div class="num" id="d-members">0</div><div class="label">新增会员</div></div>
+        </div>
+
+        <!-- 标签页 -->
+        <div class="tabs">
+            <button class="active" onclick="switchTab('scripts')">剧本列表</button>
+            <button onclick="switchTab('admin')">管理后台</button>
+            <button onclick="switchTab('dm')">DM工作台</button>
+        </div>
+
+        <!-- 剧本列表 -->
+        <div id="tab-scripts">
+            <div class="result-box">
+                <h3>可用剧本 <span class="status ok" id="scriptStatus"></span></h3>
+                <span class="endpoint">GET /api/player/scripts</span>
+                <div class="cards" id="scriptCards"></div>
+            </div>
+        </div>
+
+        <!-- 管理后台 -->
+        <div id="tab-admin" style="display:none">
+            <div class="result-box">
+                <h3>所有剧本（含未上架）<span class="status ok" id="adminScriptStatus"></span></h3>
+                <span class="endpoint">GET /api/admin/scripts</span>
+                <pre id="adminScriptResult">点击下方按钮加载...</pre>
+            </div>
+        </div>
+
+        <!-- DM工作台 -->
+        <div id="tab-dm" style="display:none">
+            <div class="result-box">
+                <h3>今日待开本列表 <span class="status ok" id="dmStatus"></span></h3>
+                <span class="endpoint">GET /api/dm/workbench/today</span>
+                <pre id="dmResult">点击下方按钮加载...</pre>
+            </div>
+        </div>
+    </div>
+
+<script>
+const BASE = 'http://localhost:8080';
+let token = '';
+
+async function login() {
+    const u = document.getElementById('username').value;
+    const p = document.getElementById('password').value;
+    try {
+        const res = await fetch(BASE + '/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (data.code === 200) {
+            token = data.data.token;
+            document.getElementById('tokenStatus').innerText = '已登录: ' + data.data.realName + ' [' + data.data.role + ']';
+            document.getElementById('tokenStatus').style.color = '#00b894';
+            loadAll();
+        } else {
+            alert('登录失败: ' + data.message);
+        }
+    } catch(e) {
+        alert('连接失败，请确认服务已启动');
+    }
+}
+
+function switchRole() {
+    const role = document.getElementById('roleSelect').value;
+    const users = { admin: ['admin','admin123'], dm: ['dm_xiaoming','admin123'], player: ['player1','admin123'] };
+    document.getElementById('username').value = users[role][0];
+    document.getElementById('password').value = users[role][1];
+    login();
+}
+
+async function api(url, needAuth = true) {
+    const opts = {};
+    if (needAuth && token) opts.headers = { 'Authorization': 'Bearer ' + token };
+    const res = await fetch(BASE + url, opts);
+    return res.json();
+}
+
+async function loadScripts() {
+    const data = await api('/api/player/scripts?page=1&size=20', false);
+    const cards = document.getElementById('scriptCards');
+    if (data.code === 200) {
+        document.getElementById('scriptStatus').innerText = data.data.total + '个剧本';
+        cards.innerHTML = data.data.records.map(s => `
+            <div class="card">
+                <h4>${s.name}</h4>
+                <p>题材: ${s.category} | 难度: ${s.difficulty} | ${s.playerCount}人 | ${s.duration}分钟</p>
+                <p>已玩 ${s.playCount} 次 | 评分 ${s.rating}</p>
+                <p class="price">¥${s.price} <span style="font-size:12px;color:#aaa">会员 ¥${s.memberPrice}</span></p>
+            </div>
+        `).join('');
+    } else {
+        cards.innerHTML = '<p style="color:#e94560">加载失败: ' + data.message + '</p>';
+    }
+}
+
+async function loadAdminScripts() {
+    const data = await api('/api/admin/scripts?page=1&size=20');
+    const pre = document.getElementById('adminScriptResult');
+    if (data.code === 200) {
+        document.getElementById('adminScriptStatus').innerText = 'OK';
+        pre.textContent = JSON.stringify(data.data.records.slice(0,3), null, 2);
+    } else {
+        pre.textContent = JSON.stringify(data, null, 2);
+    }
+}
+
+async function loadDMWorkbench() {
+    if (!token) { document.getElementById('dmResult').textContent = '请先登录DM账号'; return; }
+    const data = await api('/api/dm/workbench/today');
+    if (data.code === 200) {
+        document.getElementById('dmStatus').innerText = data.data.length + '场';
+        document.getElementById('dmResult').textContent = JSON.stringify(data.data, null, 2);
+    } else {
+        document.getElementById('dmResult').textContent = JSON.stringify(data, null, 2);
+    }
+}
+
+async function loadDashboard() {
+    const data = await api('/api/admin/dashboard/today');
+    if (data.code === 200) {
+        document.getElementById('dashboard').style.display = 'flex';
+        document.getElementById('d-revenue').innerText = data.data.todayRevenue;
+        document.getElementById('d-orders').innerText = data.data.todayOrderCount;
+        document.getElementById('d-sessions').innerText = data.data.todaySessionCount;
+        document.getElementById('d-members').innerText = data.data.newMemberCount;
+    }
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tab-scripts').style.display = tab === 'scripts' ? 'block' : 'none';
+    document.getElementById('tab-admin').style.display = tab === 'admin' ? 'block' : 'none';
+    document.getElementById('tab-dm').style.display = tab === 'dm' ? 'block' : 'none';
+    if (tab === 'admin') loadAdminScripts();
+    if (tab === 'dm') loadDMWorkbench();
+}
+
+async function loadAll() {
+    loadScripts();
+    loadDashboard();
+    loadAdminScripts();
+    loadDMWorkbench();
+}
+
+// 页面加载时自动登录并加载数据
+window.onload = function() { login(); };
+</script>
+</body>
+</html>
